@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>
+			Galaxy
+		</title>
+		<!--<link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">-->
+		<style type="text/css">
+			* {
+				margin: 0px;
+				padding: 0px;
+				user-select: none;
+				outline: none;
+			}
+			body {
+				width: 100%;
+				height: 100%;
+			}
+			#canvas {
+				width: 100%;
+				height: 100%;
+				position: absolute;
+				z-index: 0;
+			}
+			#controls {
+				width: 20%;
+				height: 100%;
+				position: absolute;
+				z-index: 1;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" width="512" height="512" onmousemove="mouseMove(event);"></canvas>
+		<div id="controls">
+			<div>
+
+			</div>
+		</div>
+		<script type="text/javascript">
+
+			// Set up canvas to render/display graphics on
+			canvas = document.getElementById("canvas");
+			context = canvas.getContext("2d");
+			// Set width to be equal to window width
+			context.canvas.width = window.innerWidth;
+			// Set height to be equal to window height
+			context.canvas.height = window.innerHeight;
+
+			var keyPressed;
+			var keyPress = function(event) {
+				keyPressed = event.key;
+			}
+			document.onkeypress = keyPress;
+
+			if (localStorage.getItem("miniverse") == undefined || 1 == 1) {
+				var data = {
+					"particles": [],
+					"information": {
+						"time": 0,
+						"lastSave": Date.now()
+					},
+					"settings": {
+						"physics": {
+							"gravity": {
+								"enabled": true,
+								"gravitationalConstant": 10 ** 1
+							},
+							"collision": {
+								"enabled": true
+							}
+						},
+						"simulation": {
+							"step": {
+								"framerate": 120
+							},
+							"saveFrequency": 10 ** 4,
+							"speed": 1
+						},
+						"render": {
+							"zoom": 10,
+							"offset": {
+								"x": 0,
+								"y": 0
+							},
+							"framerate": 60,
+							"colorization": {
+								"property": "material",
+								"color": undefined
+							}
+						}
+					}
+				}
+				data.settings.render.delay = 1000 / data.settings.render.framerate;
+				data.settings.simulation.step.delay = 1000 / data.settings.simulation.step.framerate;
+				localStorage.setItem("miniverse", JSON.stringify(data));
+				console.log("Simulation initialized and loaded into localStorage.");
+				console.log(data);
+			}
+			else {
+				data = JSON.parse(localStorage.getItem("miniverse"));
+				console.log("Simulation data loaded from localStorage: ");
+				console.log(data);
+			}
+			console.log("Simulation started.");
+
+			var mouseDown = false;
+			var mouseX = 0;
+			var mouseY = 0;
+			var lastClick = Date.now();
+			document.body.onmousedown = function() {
+				mouseDown = true;
+			}
+			document.body.onmouseup = function() {
+				mouseDown = false;
+			}
+			function mouseMove(event) {
+				mouseX = event.clientX;
+				mouseY = event.clientY;
+			}
+
+			function randomItem(array) {
+				return array[Math.floor(Math.random() * array.length)];
+			}
+			function random(minimum, maximum){
+				return (Math.random() * (maximum - minimum)) + minimum;
+			}
+			function distance(x1, y1, x2, y2){
+				return Math.sqrt(((x2 - x1) ** 2) + ((y2 - y1) ** 2));
+			}
+
+			function step() {
+				for (var i = 0; i < data.particles.length; i ++) {
+					//data.particles[i].force.x = 0;
+					//data.particles[i].force.y = 0;
+					data.particles[i].velocity.x = 0;
+					data.particles[i].velocity.y = 0;
+
+
+					//OPTIMIZE!
+					var tooclose = false;
+					for (var j = 0; j < data.particles.length; j ++) {
+						if (i !== j) {
+							var radius = distance(data.particles[i].location.x, data.particles[i].location.y, data.particles[j].location.x, data.particles[j].location.y);
+							var collisionRadius = (data.particles[i].radius + data.particles[j].radius) * 1.01;
+							if (radius < collisionRadius * 1.1) {
+								tooclose = true;
+							}
+						}
+					}
+
+					for (var j = 0; j < data.particles.length; j ++) {
+						if (i !== j) {
+							var radius = distance(data.particles[i].location.x, data.particles[i].location.y, data.particles[j].location.x, data.particles[j].location.y);
+							//var collisionRadius = {
+								//"inner": (data.particles[i].radius + data.particles[j].radius) * 0.95,
+								//"outer": (data.particles[i].radius + data.particles[j].radius) * 1.05,
+							//}
+							var collisionRadius = (data.particles[i].radius + data.particles[j].radius) * 1.01;
+
+							// Run gravity calculations
+							if (data.settings.physics.gravity.enabled == true && tooclose == false) {
+								var direction = {
+									"x": data.particles[j].location.x - data.particles[i].location.x,
+									"y": data.particles[j].location.y - data.particles[i].location.y
+								}
+								var force = {
+									"x": (data.settings.physics.gravity.gravitationalConstant * direction.x *  data.particles[i].mass * data.particles[j].mass) / (radius ** 3),
+									"y": (data.settings.physics.gravity.gravitationalConstant * direction.y *  data.particles[i].mass * data.particles[j].mass) / (radius ** 3)
+								}
+								data.particles[i].force.x += force.x;
+								data.particles[i].force.y += force.y;
+							}
+							// Run collision calculations
+							// Simulate collision only if collisions are enabled and the two objects are closer than the collision radius between them
+							if (data.settings.physics.collision.enabled == true && radius < collisionRadius) {
+								// Store velocity of first object temporarily - we will need it a little later
+								var velocityTemp = {
+									"x": data.particles[i].velocity.x,
+									"y": data.particles[i].velocity.y
+								}
+								n = 0.5;
+								data.particles[i].velocity.x += data.particles[j].velocity.x * n;
+								data.particles[i].velocity.y += data.particles[j].velocity.y * n;
+								data.particles[j].velocity.x += velocityTemp.x * n;
+								data.particles[j].velocity.y += velocityTemp.y * n;
+								//if (radius < collisionRadius - 0.1) {
+									//data.particles[i].location.x += 1;
+								//}
+							}
+
+						}
+
+					}
+
+					data.particles[i].acceleration.x = data.particles[i].force.x / data.particles[i].mass;
+					data.particles[i].acceleration.y = data.particles[i].force.y / data.particles[i].mass;
+
+					data.particles[i].velocity.x += (data.particles[i].acceleration.x * data.settings.simulation.speed) / data.settings.render.framerate;
+					data.particles[i].velocity.y += (data.particles[i].acceleration.y * data.settings.simulation.speed) / data.settings.render.framerate;
+
+					if (data.particles[i].location.fixed == false) {
+						data.particles[i].location.x += (data.particles[i].velocity.x * data.settings.simulation.speed) / data.settings.render.framerate;
+						data.particles[i].location.y += (data.particles[i].velocity.y * data.settings.simulation.speed) / data.settings.render.framerate;
+					}
+				}
+
+				if (Date.now() - data.information.lastSave > data.settings.simulation.saveFrequency) {
+					localStorage.setItem("miniverse", JSON.stringify(data));
+					data.information.lastSave = Date.now();
+					console.log("Simulation data save completed at " + Date() + " (" + Date.now() + " milliseconds). Save radius: " + JSON.stringify(data).length + " characters.");
+					console.log(data);
+				}
+				var createX = mouseX / data.settings.render.zoom;
+				var createY = mouseY / data.settings.render.zoom;
+				var overlap = false;
+				if (1 == 2) {
+					for (var i = 0; i < data.particles.length; i ++) {
+
+					}
+				}
+				if (Date.now() - lastClick > 100 && mouseDown == true && overlap == false) {
+					var particle = {
+						"location": {
+							"x": createX,
+							"y": createY,
+							"fixed": false
+						},
+						"velocity": {
+							"x": 0,
+							"y": 0
+						},
+						"acceleration": {
+							"x": 0,
+							"y": 0
+						},
+						"force": {
+							"x": 0,
+							"y": 0
+						},
+						"form": "circle",
+						"radius": 1,
+						"mass": 1,
+						"elasticity": 0,
+						"material": {
+							"color": {
+								"hue": 0,
+								"saturation": 0,
+								"lightness": 0
+							},
+							"transparency": 1
+						},
+						"special": {
+
+						}
+					}
+					if (keyPressed == "q") {
+						particle.mass = 100;
+					}
+					data.particles.push(particle);
+					lastClick = Date.now();
+				}
+				data.information.time += data.settings.simulation.speed;
+			}
+
+			function render() {
+				context.fillStyle = "rgba(255, 255, 255, 1)";
+				context.fillRect(0, 0, canvas.width, canvas.height);
+				for (var i = 0; i < data.particles.length; i ++) {
+
+					if (data.settings.render.colorization.property == "material") {
+						var property = data.particles[i].material;
+						context.fillStyle = "hsla(" + property.color.hue + ", " + property.color.saturation + "%, " + property.color.lightness + "%, " +  + property.transparency + ")";
+					}
+					else {
+						if (data.settings.render.colorization.property == "location") {
+							var property = (data.particles[i].location.x + data.particles[i].location.y);
+						}
+						else if (data.settings.render.colorization.property == "velocity") {
+							var property = (data.particles[i].velocity.x + data.particles[i].velocity.y);
+						}
+						else if (data.settings.render.colorization.property == "acceleration") {
+							var property = (data.particles[i].acceleration.x + data.particles[i].acceleration.y);
+						}
+						else if (data.settings.render.colorization.property == "force") {
+							var property = (data.particles[i].force.x + data.particles[i].force.y);
+						}
+
+						if (data.settings.render.colorization.color == "hue") {
+							context.fillStyle = "hsla(" + property + ", 100%, 50%, 1)";
+						}
+						else if (data.settings.render.colorization.color == "saturation") {
+							context.fillStyle = "hsla(0, " + property + "%, 50%, 1)";
+						}
+						else if (data.settings.render.colorization.color == "lightness") {
+							context.fillStyle = "hsla(0, 100%, " + property + "%, 1)";
+						}
+						else if (data.settings.render.colorization.color == "alpha") {
+							context.fillStyle = "hsla(0, 100%, 50%, " + (property / 100) + ")";
+						}
+					}
+
+					//context.fillRect(data.particles[i].location.x, data.particles[i].location.y, data.settings.render.zoom, data.settings.render.zoom);
+					var x = data.particles[i].location.x * data.settings.render.zoom;
+					var y = data.particles[i].location.y * data.settings.render.zoom;
+					if (data.particles[i].form = "circle") {
+						var radius = data.particles[i].radius * data.settings.render.zoom;
+						context.beginPath();
+						context.arc(x, y, radius, 0, 2 * Math.PI);
+						context.fill();
+					}
+				}
+			}
+
+			var interval = window.setInterval(step, data.settings.simulation.step.delay);
+			var interval = window.setInterval(render, data.settings.render.delay);
+
+		</script>
+	</body>
+</html>

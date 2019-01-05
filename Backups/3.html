@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>
+			Galaxy
+		</title>
+		<link href="https://fonts.googleapis.com/css?family=Roboto:300" rel="stylesheet">
+		<link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.blue-deep_purple.min.css" />
+		<style type="text/css">
+			* {
+				margin: 0px;
+				padding: 0px;
+				user-select: none;
+				outline: none;
+				font-family: "Roboto";
+			}
+			body {
+				width: 100%;
+				height: 100%;
+			}
+			#canvas {
+				width: 100%;
+				height: 100%;
+				position: absolute;
+				z-index: 0;
+			}
+			#sidebar {
+				width: 40%;
+				height: 100%;
+				position: absolute;
+				z-index: 1;
+
+				padding: 50px;
+			}
+			#save-button, #export-button {
+				width: 40%;
+			}
+			#reset-button {
+				background-color: #D00;
+				width: 80%;
+			}
+			.mdl-layout-title {
+				margin-bottom: 20px;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" width="512" height="512" onmousemove="mouseMove(event);"></canvas>
+		<div id="sidebar">
+			<span class="mdl-layout-title">Galaxy</span>
+
+			<span class="mdl-layout-title">Physics</span>
+
+			<!-- Gravity switch for "window.data.settings.physics.gravity.enabled" property -->
+			<label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="gravity-switch">
+				<input type="checkbox" id="gravity-switch" class="mdl-switch__input" checked>
+				<span class="mdl-switch__label">Gravity</span>
+			</label>
+			<div class="mdl-tooltip" for="gravity-switch">
+				Enable/disable gravity.
+			</div>
+
+			<!-- Gravitational field strength constant input field for "window.data.settings.physics.gravity.gravitationalConstant" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<input type="text" id="gravitational-constant-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="gravitational-constant-field">Gravitational constant</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<div class="mdl-tooltip" for="gravitational-constant-field">
+				Gravitational constant to be used when calculating the strength of gravity in the simulation.
+			</div>
+
+			<label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="collision-switch">
+				<input type="checkbox" id="collision-switch" class="mdl-switch__input" checked>
+				<span class="mdl-switch__label">Collision</span>
+			</label>
+			<div class="mdl-tooltip" for="collision-switch">
+				Enable/disable collisions between particles.
+			</div>
+
+			<!-- Simulation settings section title/header -->
+			<span class="mdl-layout-title">Simulation</span>
+
+			<!-- Simulation speed input field for "window.data.settings.simulation.speed" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<input  type="text" id="simulation-speed-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="simulation-speed-field">Simulation speed</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<div class="mdl-tooltip" for="simulation-speed-field">
+				Speed of the simulation (value of 1 is normal speed).
+			</div>
+			<div>
+				<button id="save-button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored mdl-cell mdl-cell--1-col" onclick="userSave();">
+					Save
+				</button>
+				<div class="mdl-tooltip" for="save-button">
+					Save all simulation data and settings to browser localStorage. Automatically done every 10 seconds.
+				</div>
+
+				<button id="export-button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored  mdl-cell mdl-cell--1-col" onclick="export_();">
+					Export
+				</button>
+				<div class="mdl-tooltip" for="export-button">
+					Download JSON file containing all simulation data.
+				</div>
+
+				<button id="reset-button" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored" onclick="userReset();">
+					Reset Simulation
+				</button>
+				<div class="mdl-tooltip" for="reset-button">
+					Reset all simulation data and settings. This cannot be undone.
+				</div>
+			</div>
+
+			<!-- Camera and rendering settings for simulation -->
+			<!-- -->
+			<span class="mdl-layout-title">Render</span>
+
+			<!-- Camera zoom slider for "window.data.settings.render.zoom" -->
+			<input id="zoom-slider" class="mdl-slider mdl-js-slider" type="range"
+			  min="1" max="100" value="25" tabindex="0" oninput="updateSettings();">
+			<span id="zoom-label">Zoom</span>
+
+			<!-- Simulation speed input field for "window.data.settings.simulation.speed" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<input type="text" id="simulation-speed-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="simulation-speed-field">Simulation speed</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<div class="mdl-tooltip" for="simulation-speed-field">
+				Speed of the simulation (value of 1 is normal speed).
+			</div>
+
+			<!-- -->
+			<!-- Numerical input field for X (horizontal) camera offset value "window.data.settings.render.offset.x" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<input type="text" id="offset-x-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="offset-x-field">X Offset</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<div class="mdl-tooltip" for="offset-x-field">
+				Camera offset X (horizontal)
+			</div>
+
+			<!-- Numerical input field for Y (vertical) camera offset value "window.data.settings.render.offset.y" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<input type="text" id="offset-y-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="offset-y-field">Y Offset</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<div class="mdl-tooltip" for="offset-y-field">
+				Camera offset Y (vertical)
+			</div>
+
+			<!-- Particle creation settings -->
+			<span class="mdl-layout-title">Particle</span>
+
+			<label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="mouse-particle-creation-switch">
+				<input type="checkbox" id="mouse-particle-creation-switch" class="mdl-switch__input" checked>
+				<span class="mdl-switch__label">Mouse particle creation</span>
+			</label>
+			<div class="mdl-tooltip" for="mouse-particle-creation-switch">
+				Enable/disable creating particles with mouse click.
+			</div>
+
+			<!-- Particle location input fields -->
+			<!-- Numerical input field for X (horizontal) location of new particle for "particles[i].location.x" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<!-- Numberical input field -->
+				<input type="text" id="particle-location-x-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="particle-location-x-field">X location</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<!-- Tooltip for location X value input field -->
+			<div class="mdl-tooltip" for="particle-location-x-field">
+				Particle location X (-&#x221e; &#8213; &#x221e;)
+			</div>
+
+			<!-- Numerical input field for Y (vertical) location of new particle for "particles[i].location.y" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<!-- Numberical input field -->
+				<input type="text" id="particle-location-y-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="particle-location-y-field">Y location</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<!-- Tooltip for location Y value input field -->
+			<div class="mdl-tooltip" for="particle-location-y-field">
+				Particle location Y (-&#x221e; &#8213; &#x221e;)
+			</div>
+
+			<!-- Particle velocity input fields -->
+			<!-- Numerical input field for X (horizontal) velocity of new particle for "particles[i].velocity.x" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<!-- Numberical input field -->
+				<input type="text" id="particle-velocity-x-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="particle-velocity-x-field">X velocity</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<!-- Tooltip for velocity X value input field -->
+			<div class="mdl-tooltip" for="particle-velocity-x-field">
+				Particle velocity X (-&#x221e; &#8213; &#x221e;)
+			</div>
+
+			<!-- Numerical input field for Y (vertical) velocity of new particle for "particles[i].velocity.y" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<!-- Numberical input field -->
+				<input type="text" id="particle-velocity-y-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="particle-velocity-y-field">Y velocity</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<!-- Tooltip for velocity Y value input field -->
+			<div class="mdl-tooltip" for="particle-velocity-y-field">
+				Particle velocity Y (-&#x221e; &#8213; &#x221e;)
+			</div>
+
+			<!-- Particle acceleration input fields -->
+			<!-- Numerical input field for X (horizontal) acceleration of new particle for "particles[i].acceleration.x" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<!-- Numberical input field -->
+				<input type="text" id="particle-acceleration-x-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="particle-acceleration-x-field">X acceleration</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<!-- Tooltip for acceleration X value input field -->
+			<div class="mdl-tooltip" for="particle-velocity-x-field">
+				Particle acceleration X (-&#x221e; &#8213; &#x221e;)
+			</div>
+
+			<!-- Numerical input field for X (vertical) velocity of new particle for "particles[i].acceleration.y" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<!-- Numberical input field -->
+				<input type="text" id="particle-acceleration-y-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="particle-acceleration-y-field">Y acceleration</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<!-- Tooltip for velocity Y value input field -->
+			<div class="mdl-tooltip" for="particle-acceleration-y-field">
+				Particle acceleration Y (-&#x221e; &#8213; &#x221e;)
+			</div>
+
+			<!-- Numerical input field for radius of new particle for "particles[i].radius" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<!-- Numberical input field -->
+				<input type="text" id="particle-radius-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="particle-radius-field">Radius</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<!-- Tooltip for radius input field -->
+			<div class="mdl-tooltip" for="particle-radius-field">
+				Particle radius (0 &#8213; &#x221e;)
+			</div>
+			<!-- Numerical input field for mass of new particle for "particles[i].mass" property -->
+			<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+				<!-- Numberical input field -->
+				<input type="text" id="particle-mass-field" class="mdl-textfield__input" pattern="-?[0-9]*(\.[0-9]+)?" oninput="updateSettings();">
+				<!-- Numerical input field label -->
+				<label class="mdl-textfield__label" for="particle-mass-field">Mass</label>
+				<!-- Error message to display when user enters a non-numberic value -->
+				<span class="mdl-textfield__error">Input is not a number</span>
+			</div>
+			<!-- Tooltip for radius input field -->
+			<div class="mdl-tooltip" for="particle-mass-field">
+				Particle mass (0 &#8213; &#x221e;)
+			</div>
+
+		</div>
+
+		<dialog id="reset-dialog" class="mdl-dialog">
+			<div class="mdl-dialog__content">
+				<p>
+					Reset all simulation data and settings?
+				</p>
+			</div>
+			<div class="mdl-dialog__actions mdl-dialog__actions--full-width">
+				<button id="reset" type="button" class="mdl-button">Reset</button>
+				<button id="close" type="button" class="mdl-button">Cancel</button>
+			</div>
+		</dialog>
+
+		<!-- mmmn, snacks. -->
+		<div id="snackbar" class="mdl-js-snackbar mdl-snackbar">
+			<div class="mdl-snackbar__text"></div>
+			<button class="mdl-snackbar__action" type="button"></button>
+		</div>
+		<script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+		<script type="text/javascript" src="http://danml.com/js/download2.js"></script>
+		<script type="text/javascript">
+
+			// Set up canvas to render/display graphics on
+			canvas = document.getElementById("canvas");
+			context = canvas.getContext("2d");
+			// Set width to be equal to window width
+			context.canvas.width = window.innerWidth;
+			// Set height to be equal to window height
+			context.canvas.height = window.innerHeight;
+
+			var keyPressed;
+			var keyPress = function(event) {
+				keyPressed = event.key;
+			}
+			document.onkeypress = keyPress;
+
+			function userReset() {
+				var dialog = document.querySelector("#reset-dialog");
+				dialog.showModal();
+				if (! dialog.showModal) {
+					dialogPolyfill.registerDialog(dialog);
+				}
+				dialog.querySelector('#reset').addEventListener('click', function() {
+				      dialog.close();
+					reset();
+					var container = document.querySelector('#snackbar');
+					var snackbar = {
+						message: "Simulation data reset.",
+						timeout: 2000
+					};
+					container.MaterialSnackbar.showSnackbar(snackbar);
+				});
+				dialog.querySelector('#close').addEventListener('click', function() {
+				      dialog.close();
+				});
+			}
+
+			function reset() {
+				window.data = {
+					"particles": [],
+					"information": {
+						"time": 0,
+						"lastSave": Date.now()
+					},
+					"settings": {
+						"physics": {
+							"gravity": {
+								"enabled": true,
+								"gravitationalConstant": 10 ** 1
+							},
+							"collision": {
+								"enabled": true
+							}
+						},
+						"simulation": {
+							"step": {
+								"framerate": 120
+							},
+							"saveFrequency": 10 ** 4,
+							"speed": 1
+						},
+						"render": {
+							"zoom": 100,
+							"offset": {
+								"x": 0,
+								"y": 0
+							},
+							"framerate": 60,
+							"colorization": {
+								"property": "material",
+								"color": undefined
+							}
+						}
+					}
+				}
+				window.data.settings.render.delay = 1000 / window.data.settings.render.framerate;
+				window.data.settings.simulation.step.delay = 1000 / window.data.settings.simulation.step.framerate;
+			}
+
+			function updateSettings() {
+				window.data.settings.physics.gravity.enabled = document.getElementById("gravity-switch").checked;
+				var input = parseInt(document.getElementById("gravitational-constant-field").value);
+				if (! isNaN(input)) {
+					window.data.settings.physics.gravity.gravitationalConstant = input;
+				}
+
+				var input = parseInt(document.getElementById("simulation-speed-field").value);
+				if (! isNaN(input)) {
+					window.data.settings.simulation.speed = input;
+				}
+				else {
+
+				}
+
+				var input = parseInt(document.getElementById("offset-x-field").value);
+				if (!isNaN(input)) {
+					window.data.settings.render.offset.x = input;
+				}
+
+				window.data.settings.render.zoom = document.getElementById("zoom-slider").value;
+				document.getElementById("zoom-label").innerText = "Zoom: " + window.data.settings.render.zoom;
+			}
+
+			function userSave() {
+				// Save simulation data and settings
+				save();
+				// Display snackbar with save message
+				var length = JSON.stringify(window.data).length;
+				var container = document.querySelector('#snackbar');
+				var snackbar = {
+					message: "Simulation data saved successfully. " + length + " characters.",
+					timeout: 2000
+				};
+				// Display snackbar message confirming save (this is not done for autosave)
+				container.MaterialSnackbar.showSnackbar(snackbar);
+			}
+
+			// Write simulation data at current time to browser localStorage and log information to console
+			function save() {
+				localStorage.setItem("galaxy", JSON.stringify(window.data));
+				window.data.information.lastSave = Date.now();
+				// Log confirmation message with save timestamp (standard and in milliseconds) and current save size, in characters
+				console.log("Simulation data save completed at " + Date() + " (" + Date.now() + " milliseconds). Save size: " + JSON.stringify(window.data).length + " characters.");
+				console.log(window.data);
+			}
+
+			// Save JSON file of all simulation data and settings using download.js by dandavis: http://danml.com/download.html
+			function export_() { // Underscore added after function name "export" to avoid reserved keyword error: "Uncaught SyntaxError: Unexpected token export"
+				// Original file save method: convert data object (window.data) to string, convert string to base64, and send user to data URL containing the file - abandoned because of lack of browser support, including some browsers limiting file size to ~32 kilobytes, substantilly less than some file sizes generated by this program
+					//var dataUrl = "data:application/octet-stream;charset=utf-16le;base64," + btoa(JSON.stringify(window.data));
+					//window.open(window.dataUrl);
+				// Create string from data object, window.data
+				var file = JSON.stringify(window.data);
+				// Create JSON file download from string
+				download(file, "galaxy-simulation.json", "application/json");
+			}
+
+			if (localStorage.getItem("galaxy") == undefined || 1 == 1) {
+				// Reset simulation (to create window.data variable)
+				reset();
+				localStorage.setItem("galaxy", JSON.stringify(window.data));
+				updateSettings();
+				console.log("Simulation initialized and loaded into localStorage.");
+				console.log(window.data);
+			}
+			else {
+				data = JSON.parse(localStorage.getItem("galaxy"));
+				console.log("Simulation data loaded from localStorage: ");
+				console.log(window.data);
+			}
+			console.log("Simulation started.");
+
+			// Detect if mouse is pressed on canvas or not
+			var mouseDown = false;
+			var mouseX = 0;
+			var mouseY = 0;
+			var lastClick = Date.now();
+			canvas.onmousedown = function() {
+				mouseDown = true;
+			}
+			document.body.onmouseup = function() {
+				mouseDown = false;
+			}
+
+			function mouseMove(event) {
+				mouseX = event.clientX;
+				mouseY = event.clientY;
+			}
+
+			// Return a random item from a provided JSON array (I just got tired of having to rewrite this every time I needed it)
+			function randomItem(array) {
+				return array[Math.floor(Math.random() * array.length)];
+			}
+			// Return a random value between provided minimum and maximum values
+			function random(minimum, maximum){
+				return (Math.random() * (maximum - minimum)) + minimum;
+			}
+			// Find the distance between two points using provided x and y coordinates for each point
+			function distance(x1, y1, x2, y2){
+				return Math.sqrt(((x2 - x1) ** 2) + ((y2 - y1) ** 2));
+			}
+
+			// One "step" of the physics simulation engine
+			function step() {
+				// Run through array of all particles (data.particles) and calculate physics interactions for each one
+				for (var i = 0; i < window.data.particles.length; i ++) {
+					// Having this first helped
+
+					// F=ma --> a=F/m
+					// Calculate x (horizontal) acceleration
+					window.data.particles[i].acceleration.x = window.data.particles[i].force.x / window.data.particles[i].mass;
+					// Calculate y (vertical) acceleration
+					window.data.particles[i].acceleration.y = window.data.particles[i].force.y / window.data.particles[i].mass;
+
+
+					window.data.particles[i].velocity.x += (window.data.particles[i].acceleration.x * window.data.settings.simulation.speed) / window.data.settings.render.framerate;
+					window.data.particles[i].velocity.y += (window.data.particles[i].acceleration.y * window.data.settings.simulation.speed) / window.data.settings.render.framerate;
+
+					// Only move the particle if "fixed: true" property is set to false (otherwise, do not change the particle's location)
+					if (window.data.particles[i].location.fixed == false) {
+						window.data.particles[i].location.x = window.data.particles[i].location.x += (window.data.particles[i].velocity.x * window.data.settings.simulation.speed) / window.data.settings.render.framerate;
+						window.data.particles[i].location.y = window.data.particles[i].location.y += (window.data.particles[i].velocity.y * window.data.settings.simulation.speed) / window.data.settings.render.framerate;
+					}
+
+					// Reset net force on particle - forces will be calculated and added later, one at a time
+					window.data.particles[i].force.x = 0;
+					window.data.particles[i].force.y = 0;
+
+					//OPTIMIZE!
+					var tooclose = false;
+					for (var j = 0; j < window.data.particles.length; j ++) {
+						if (i !== j) {
+							var radius = distance(window.data.particles[i].location.x, window.data.particles[i].location.y, window.data.particles[j].location.x, window.data.particles[j].location.y);
+							var collisionRadius = (window.data.particles[i].radius + window.data.particles[j].radius) * 1.01;
+							if (radius < collisionRadius * 1) {
+								tooclose = true;
+							}
+						}
+					}
+
+					for (var j = 0; j < window.data.particles.length; j ++) {
+						if (i !== j) {
+							var radius = distance(window.data.particles[i].location.x, window.data.particles[i].location.y, window.data.particles[j].location.x, window.data.particles[j].location.y);
+							//var collisionRadius = {
+								//"inner": (window.data.particles[i].radius + window.data.particles[j].radius) * 0.95,
+								//"outer": (window.data.particles[i].radius + window.data.particles[j].radius) * 1.05,
+							//}
+							var collisionRadius = (window.data.particles[i].radius + window.data.particles[j].radius) * 1.01;
+
+							// Run gravity calculations
+							if (window.data.settings.physics.gravity.enabled == true) {
+								var direction = {
+									"x": window.data.particles[j].location.x - window.data.particles[i].location.x,
+									"y": window.data.particles[j].location.y - window.data.particles[i].location.y
+								}
+								var force = {
+									"x": (window.data.settings.physics.gravity.gravitationalConstant * direction.x * window.data.particles[i].mass * window.data.particles[j].mass) / (radius ** 3),
+									"y": (window.data.settings.physics.gravity.gravitationalConstant * direction.y * window.data.particles[i].mass * window.data.particles[j].mass) / (radius ** 3)
+								}
+								window.data.particles[i].force.x += force.x;
+								window.data.particles[i].force.y += force.y;
+							}
+							// Run collision calculations
+							// Simulate collision only if collisions are enabled and the two objects are closer than the collision radius between them
+							if (window.data.settings.physics.collision.enabled == true && radius < collisionRadius) {
+
+								// Store velocity of first object temporarily - we will need it a little later
+								var velocityTemp = {
+									"x": window.data.particles[i].velocity.x,
+									"y": window.data.particles[i].velocity.y
+								}
+								n = 0.5;
+								// Transfer velocity from second object to first object
+								window.data.particles[i].force.x += (window.data.particles[j].velocity.x / window.data.particles[i].mass) * n;
+								window.data.particles[i].force.y += (window.data.particles[j].velocity.y / window.data.particles[i].mass) * n;
+								// FORCE PARTITIONS
+
+								// Transfer velocity from first object to second object
+								window.data.particles[j].force.x += (velocityTemp.x / window.data.particles[j].mass) * n;
+								window.data.particles[j].force.y += (velocityTemp.y / window.data.particles[j].mass) * n;
+
+								// Newton's Third Law (and, most likely, the thing that saved this project from destruction): the force that one object exerts on another is exerted equally from that object to itself; prevents gravity (and other forces) from allowing the particles to be drawn together past their collision radius
+								var forceTemp = {
+									"x": window.data.particles[i].force.x,
+									"y": window.data.particles[i].force.y
+								}
+								r = 0.9;
+								// Transfer force from second object to first object
+								window.data.particles[i].force.x = window.data.particles[j].force.x * r;
+								window.data.particles[i].force.y = window.data.particles[j].force.y * r;
+								// Transfer force from first object to second object
+								window.data.particles[j].force.x = forceTemp.x * r;
+								window.data.particles[j].force.y = forceTemp.y * r;
+
+								//if (radius < collisionRadius - 0.1) {
+									//window.data.particles[i].location.x += 1;
+								//}
+							}
+
+						}
+
+					}
+
+
+				}
+
+				if (Date.now() - window.data.information.lastSave > window.data.settings.simulation.saveFrequency) {
+					save();
+				}
+				var createX = mouseX / window.data.settings.render.zoom;
+				var createY = mouseY / window.data.settings.render.zoom;
+				var overlap = false;
+				if (1 == 2) {
+					for (var i = 0; i < window.data.particles.length; i ++) {
+
+					}
+				}
+				// Add new particle when mouse is down on canvas
+				if (Date.now() - lastClick > 100 && mouseDown == true && overlap == false) {
+					// Define information and properties for new particle
+					var particle = {
+						"location": {
+							"x": createX,
+							"y": createY,
+							"fixed": false
+						},
+						"velocity": {
+							"x": 0,
+							"y": 0
+						},
+						"acceleration": {
+							"x": 0,
+							"y": 0
+						},
+						"force": {
+							"x": 0,
+							"y": 0
+						},
+						"form": "circle",
+						// Radius of particle
+						"radius": 1,
+						// Mass value used when calculating gravitational interactions or collisions
+						"mass": 1,
+						"elasticity": 0,
+						"material": {
+							"color": {
+								"hue": 0,
+								"saturation": 0,
+								"lightness": 0
+							},
+							"transparency": 1
+						}
+					}
+					// Add particle information as new element in data.particles array
+					window.data.particles.push(particle);
+					// Update "lastClick" time to current time
+					lastClick = Date.now();
+				}
+				if (keyPressed == "q") {
+					particle.mass = 100;
+				}
+				window.data.information.time += window.data.settings.simulation.speed;
+			}
+
+			function render() {
+				// Clear canvas
+				// Set fill color to plain white
+				context.fillStyle = "rgba(255, 255, 255, 1)";
+				// Fill a rectangle starting at the upper-left hand corner of the canvas, with width and length equal to that of the canvas
+				context.fillRect(0, 0, canvas.width, canvas.height);
+				// Go through array of all particles to render each one
+				for (var i = 0; i < window.data.particles.length; i ++) {
+
+					if (window.data.settings.render.colorization.property == "material") {
+						var property = window.data.particles[i].material;
+						context.fillStyle = "hsla(" + property.color.hue + ", " + property.color.saturation + "%, " + property.color.lightness + "%, " +  + property.transparency + ")";
+					}
+					else {
+						if (window.data.settings.render.colorization.property == "location") {
+							var property = (window.data.particles[i].location.x + window.data.particles[i].location.y);
+						}
+						else if (window.data.settings.render.colorization.property == "velocity") {
+							var property = (window.data.particles[i].velocity.x + window.data.particles[i].velocity.y);
+						}
+						else if (window.data.settings.render.colorization.property == "acceleration") {
+							var property = (window.data.particles[i].acceleration.x + window.data.particles[i].acceleration.y);
+						}
+						else if (window.data.settings.render.colorization.property == "force") {
+							var property = (window.data.particles[i].force.x + window.data.particles[i].force.y);
+						}
+
+						if (window.data.settings.render.colorization.color == "hue") {
+							context.fillStyle = "hsla(" + property + ", 100%, 50%, 1)";
+						}
+						else if (window.data.settings.render.colorization.color == "saturation") {
+							context.fillStyle = "hsla(0, " + property + "%, 50%, 1)";
+						}
+						else if (window.data.settings.render.colorization.color == "lightness") {
+							context.fillStyle = "hsla(0, 100%, " + property + "%, 1)";
+						}
+						else if (window.data.settings.render.colorization.color == "alpha") {
+							context.fillStyle = "hsla(0, 100%, 50%, " + (property / 100) + ")";
+						}
+					}
+
+					//context.fillRect(window.data.particles[i].location.x, window.data.particles[i].location.y, window.data.settings.render.zoom, window.data.settings.render.zoom);
+					var x = (window.data.particles[i].location.x + window.data.settings.render.offset.x) * window.data.settings.render.zoom;
+					var y = (window.data.particles[i].location.y + window.data.settings.render.offset.x) * window.data.settings.render.zoom;
+					if (window.data.particles[i].form = "circle") {
+						var radius = window.data.particles[i].radius * window.data.settings.render.zoom;
+						context.beginPath();
+						context.arc(x, y, radius, 0, 2 * Math.PI);
+						// Render particle as circle (arc)
+						context.fill();
+					}
+				}
+			}
+
+			//
+			var stepInterval = window.setInterval(step, window.data.settings.simulation.step.delay);
+			//
+			var renderInterval = window.setInterval(render, window.data.settings.render.delay);
+
+		</script>
+	</body>
+</html>
